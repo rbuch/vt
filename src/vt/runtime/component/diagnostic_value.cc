@@ -108,6 +108,18 @@ void reduceHelper(
     );                                                                  \
   }                                                                     \
 
+#if !vt_check_enabled(trace_only)
+checkpoint_virtual_serialize_derived_from_def(DiagnosticValue<int64_t>, DiagnosticBase)
+checkpoint_virtual_serialize_derived_from_def(DiagnosticValue<int32_t>, DiagnosticBase)
+checkpoint_virtual_serialize_derived_from_def(DiagnosticValue<int16_t>, DiagnosticBase)
+checkpoint_virtual_serialize_derived_from_def(DiagnosticValue<int8_t>, DiagnosticBase)
+checkpoint_virtual_serialize_derived_from_def(DiagnosticValue<uint64_t>, DiagnosticBase)
+checkpoint_virtual_serialize_derived_from_def(DiagnosticValue<uint32_t>, DiagnosticBase)
+checkpoint_virtual_serialize_derived_from_def(DiagnosticValue<uint16_t>, DiagnosticBase)
+checkpoint_virtual_serialize_derived_from_def(DiagnosticValue<uint8_t>, DiagnosticBase)
+checkpoint_virtual_serialize_derived_from_def(DiagnosticValue<double>, DiagnosticBase)
+checkpoint_virtual_serialize_derived_from_def(DiagnosticValue<float>, DiagnosticBase)
+#endif
 
 DIAGNOSIC_VALUE_INSTANCE(int64_t)
 DIAGNOSIC_VALUE_INSTANCE(int32_t)
