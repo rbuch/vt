@@ -449,7 +449,7 @@ EventType ActiveMessenger::sendMsgBytes(
     theTerm()->hangDetectSend();
   }
 
-  recordLbStatsCommForSend(dest, base);
+  recordLbStatsCommForSend(dest, base, msg_size);
 
   return event_id;
 }
@@ -518,7 +518,7 @@ EventType ActiveMessenger::doMessageSend(
     if (dest != this_node) {
       sendMsgBytesWithPut(dest, base, send_tag);
     } else {
-      recordLbStatsCommForSend(dest, base);
+      recordLbStatsCommForSend(dest, base, base.size());
 
       runnable::makeRunnable(base, true, envelopeGetHandler(msg->env), dest)
         .withTDEpochFromMsg(is_term)
@@ -895,7 +895,8 @@ void ActiveMessenger::finishPendingDataMsgAsyncRecv(InProgressDataIRecv* irecv) 
 }
 
 void ActiveMessenger::recordLbStatsCommForSend(
-  NodeType const& dest, MsgSharedPtr<BaseMsgType> const& base
+  NodeType const& dest, MsgSharedPtr<BaseMsgType> const& base,
+  MsgSizeType const& msg_size
 ) {
   if (theContext()->getTask() != nullptr) {
     auto lb = theContext()->getTask()->get<ctx::LBStats>();
@@ -907,7 +908,7 @@ void ActiveMessenger::recordLbStatsCommForSend(
 
       if (not already_recorded) {
         auto dest_elm_id = elm::ElmIDBits::createBareHandler(dest);
-        theContext()->getTask()->send(dest_elm_id, base.size());
+        theContext()->getTask()->send(dest_elm_id, msg_size);
       }
     }
   }
