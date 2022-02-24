@@ -41,6 +41,7 @@
 //@HEADER
 */
 
+#include "vt/vrt/collection/balance/charmlb/TreeStrategyBase.h"
 #if !defined INCLUDED_VT_VRT_COLLECTION_BALANCE_CHARMLB_CHARMLB_CC
 #define INCLUDED_VT_VRT_COLLECTION_BALANCE_CHARMLB_CHARMLB_CC
 
@@ -63,6 +64,9 @@
 #include <vector>
 #include <algorithm>
 #include <cassert>
+
+// Include Charm++ LB file
+#include "vt/vrt/collection/balance/charmlb/greedy.h"
 
 namespace vt { namespace vrt { namespace collection { namespace lb {
 
@@ -169,7 +173,7 @@ void CharmLB::loadStats() {
   if (this_node == 0) {
     vt_print(
       lb,
-      "loadStats: load={}, total={}, avg={}, I={:.2f},"
+      "CharmLB loadStats: load={}, total={}, avg={}, I={:.2f},"
       "should_lb={}, auto={}, threshold={}\n",
       TimeTypeWrapper(this_load / 1000), TimeTypeWrapper(total_load / 1000),
       TimeTypeWrapper(avg_load / 1000), I, should_lb, auto_threshold,
@@ -220,8 +224,6 @@ void CharmLB::reduceCollect() {
 void CharmLB::runBalancer(
   ObjSampleType&& in_objs, LoadProfileType&& in_profile
 ) {
-  using CompRecType = CharmCompareLoadMax<CharmRecord>;
-  using CompProcType = CharmCompareLoadMin<CharmProc>;
   auto const& num_nodes = theContext()->getNumNodes();
   ObjSampleType objs{std::move(in_objs)};
   LoadProfileType profile{std::move(in_profile)};
@@ -235,43 +237,27 @@ void CharmLB::runBalancer(
     auto const& bin = elm.first;
     auto const& obj_list = elm.second;
     for (auto&& obj : obj_list) {
-      recs.emplace_back(CharmRecord{obj,static_cast<LoadType>(bin)});
+      recs.emplace_back(obj,static_cast<LoadType>(bin));
     }
   }
-  std::make_heap(recs.begin(), recs.end(), CompRecType());
+
   auto nodes = std::vector<CharmProc>{};
   for (NodeType n = 0; n < num_nodes; n++) {
     auto iter = profile.find(n);
     vtAssert(iter != profile.end(), "Must have load profile");
-    nodes.emplace_back(CharmProc{n,iter->second});
+    nodes.emplace_back(n,iter->second);
     vt_debug_print(
       verbose, lb,
       "\t CharmLB::runBalancer: node={}, profile={}\n",
       n, iter->second
     );
   }
-  std::make_heap(nodes.begin(), nodes.end(), CompProcType());
-  auto lb_size = recs.size();
-  for (size_t i = 0; i < lb_size; i++) {
-    std::pop_heap(recs.begin(), recs.end(), CompRecType());
-    auto max_rec = recs.back();
-    recs.pop_back();
-    std::pop_heap(nodes.begin(), nodes.end(), CompProcType());
-    auto min_node = nodes.back();
-    nodes.pop_back();
-    vt_debug_print(
-      verbose, lb,
-      "\t CharmLB::runBalancer: min_node={}, load_={}, "
-      "recs_={}, max_rec: obj={}, time={}\n",
-      min_node.node_, TimeTypeWrapper(min_node.load_ / 1000),
-      min_node.objs_.size(), max_rec.getObj(),
-      TimeTypeWrapper(max_rec.getLoad() / 1000)
-    );
-    min_node.objs_.push_back(max_rec.getObj());
-    min_node.load_ += max_rec.getLoad();
-    nodes.push_back(min_node);
-    std::push_heap(nodes.begin(), nodes.end(), CompProcType());
-  }
+
+  using Solution_t = TreeStrategy::Solution<CharmRecord, CharmProc>;
+  auto strategy = TreeStrategy::Greedy<CharmRecord, CharmProc, Solution_t>();
+  Solution_t solution; // Dummy solution object, passes through assignments to underlying node
+  strategy.solve(recs, nodes, solution);
+
   return transferObjs(std::move(nodes));
 }
 

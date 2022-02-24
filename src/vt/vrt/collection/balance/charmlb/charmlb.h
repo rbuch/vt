@@ -52,6 +52,8 @@
 #include "vt/vrt/collection/balance/baselb/load_sampler.h"
 #include "vt/timing/timing.h"
 
+#include "vt/vrt/collection/balance/greedylb/greedylb.h"
+
 #include <unordered_map>
 #include <map>
 #include <vector>
@@ -59,17 +61,6 @@
 #include <list>
 
 namespace vt { namespace vrt { namespace collection { namespace lb {
-
-/**
- * \enum DataDistStrategy
- *
- * \brief How to distribute the data after the centralized LB makes a decision.
- */
-enum struct DataDistStrategy : uint8_t {
-  scatter = 0,
-  bcast = 1,
-  pt2pt = 2
-};
 
 struct CharmLB : LoadSamplerBaseLB {
   using ElementLoadType  = std::unordered_map<ObjIDType,TimeType>;
@@ -127,17 +118,5 @@ private:
 
 }}}} /* end namespace vt::vrt::collection::lb */
 
-namespace std {
-
-template <>
-struct hash<vt::vrt::collection::lb::DataDistStrategy> {
-  size_t operator()(vt::vrt::collection::lb::DataDistStrategy const& in) const {
-    using UnderType =
-      std::underlying_type<vt::vrt::collection::lb::DataDistStrategy>::type;
-    return std::hash<UnderType>()(static_cast<UnderType>(in));
-  }
-};
-
-} /* end namespace std */
 
 #endif /*INCLUDED_VT_VRT_COLLECTION_BALANCE_CHARMLB_CHARMLB_H*/
