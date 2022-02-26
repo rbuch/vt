@@ -88,7 +88,7 @@ private:
   void calcLoadOver();
   void loadOverBin(ObjBinType bin, ObjBinListType& bin_list);
   void runBalancer(ObjSampleType&& objs, LoadProfileType&& profile);
-  void transferObjs(std::vector<CharmProc>&& load);
+  void transferObjs(std::vector<CharmDecision>&& decision);
   ObjIDType objSetNode(NodeType const& node, ObjIDType const& id);
   void recvObjsDirect(std::size_t len, CharmLBTypes::ObjIDType* objs);
   void recvObjs(CharmSendMsg* msg);

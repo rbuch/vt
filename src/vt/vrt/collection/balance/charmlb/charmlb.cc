@@ -224,10 +224,12 @@ void CharmLB::reduceCollect() {
 void CharmLB::runBalancer(
   ObjSampleType&& in_objs, LoadProfileType&& in_profile
 ) {
+  using ObjType = TreeStrategy::Obj<1>;
+  using ProcType = TreeStrategy::Proc<1, false>;
   auto const& num_nodes = theContext()->getNumNodes();
   ObjSampleType objs{std::move(in_objs)};
   LoadProfileType profile{std::move(in_profile)};
-  std::vector<CharmRecord> recs;
+  std::vector<ObjType> recs;
   vt_debug_print(
     normal, lb,
     "CharmLB::runBalancer: objs={}, profile={}\n",
@@ -237,15 +239,18 @@ void CharmLB::runBalancer(
     auto const& bin = elm.first;
     auto const& obj_list = elm.second;
     for (auto&& obj : obj_list) {
-      recs.emplace_back(obj,static_cast<LoadType>(bin));
+      std::array<LoadType, 1> load = {static_cast<LoadType>(bin)};
+      recs.emplace_back(obj, load.data());
     }
   }
 
-  auto nodes = std::vector<CharmProc>{};
+  auto nodes = std::vector<ProcType>{};
   for (NodeType n = 0; n < num_nodes; n++) {
     auto iter = profile.find(n);
     vtAssert(iter != profile.end(), "Must have load profile");
-    nodes.emplace_back(n,iter->second);
+    std::array<LoadType, 1> load = {iter->second};
+    std::array<LoadType, 1> speed = {0}; // Dummy for now
+    nodes.emplace_back(n,load.data(), speed.data());
     vt_debug_print(
       verbose, lb,
       "\t CharmLB::runBalancer: node={}, profile={}\n",
@@ -253,12 +258,17 @@ void CharmLB::runBalancer(
     );
   }
 
-  using Solution_t = TreeStrategy::Solution<CharmRecord, CharmProc>;
-  auto strategy = TreeStrategy::Greedy<CharmRecord, CharmProc, Solution_t>();
+  using Solution_t = TreeStrategy::Solution<ObjType, ProcType>;
+  auto strategy = TreeStrategy::Greedy<ObjType, ProcType, Solution_t>();
   Solution_t solution; // Dummy solution object, passes through assignments to underlying node
-  strategy.solve(recs, nodes, solution);
+  strategy.solve(recs, nodes, solution, false);
 
-  return transferObjs(std::move(nodes));
+  std::vector<CharmDecision> decisions;
+  for (auto&& node : nodes)
+  {
+    decisions.emplace_back(node.id, std::move(node.objs));
+  }
+  return transferObjs(std::move(decisions));
 }
 
 CharmLB::ObjIDType CharmLB::objSetNode(
@@ -316,9 +326,9 @@ void CharmLB::recvObjsDirect(std::size_t len, CharmLBTypes::ObjIDType* objs) {
   scatter_proxy.get()->recvObjsDirect(static_cast<std::size_t>(objs->id), objs+1);
 }
 
-void CharmLB::transferObjs(std::vector<CharmProc>&& in_load) {
+void CharmLB::transferObjs(std::vector<CharmDecision>&& in_decision) {
   std::size_t max_recs = 1;
-  std::vector<CharmProc> load(std::move(in_load));
+  std::vector<CharmDecision> load(std::move(in_decision));
   std::vector<std::vector<CharmLBTypes::ObjIDType>> node_transfer(load.size());
   for (auto&& elm : load) {
     auto const& node = elm.node_;

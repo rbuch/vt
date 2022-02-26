@@ -64,42 +64,31 @@ struct CharmLBTypes {
 };
 
 struct CharmRecord {
-  using ObjType = CharmLBTypes::ObjIDType;
+  using IDType = CharmLBTypes::ObjIDType;
   using LoadType = CharmLBTypes::LoadType;
 
-  CharmRecord(ObjType const& in_obj, LoadType const& in_load)
-    : obj_(in_obj), load_(in_load)
+  CharmRecord(IDType const& in_id, LoadType const& in_load)
+    : id_(in_id), load_(in_load)
   { }
 
   LoadType getLoad() const { return load_; }
   LoadType getLoad(const int dim) const { return load_; }
   LoadType operator[](const size_t dim) const { return load_; }
-  ObjType getObj() const { return obj_; }
+  IDType getID() const { return id_; }
 
 private:
-  CharmLBTypes::ObjIDType obj_ = { elm::no_element_id, uninitialized_destination };
+  CharmLBTypes::ObjIDType id_ = { elm::no_element_id, uninitialized_destination };
   LoadType load_ = 0.0f;
 };
 
-struct CharmProc {
-  CharmProc() = default;
-  CharmProc(
-    NodeType const& in_node, CharmLBTypes::LoadType const& in_load
-  ) : node_(in_node), load_(in_load) {}
-
-  CharmLBTypes::LoadType getLoad() const { return load_; }
-  CharmLBTypes::LoadType getLoad(const int d) const { return load_; }
-  CharmLBTypes::LoadType operator[](const size_t d) const { return load_; }
-
-  void assign(CharmRecord rec) {
-    objs_.push_back(rec.getObj());
-    load_ += rec.getLoad();
-  }
+struct CharmDecision {
+  CharmDecision() = default;
+  CharmDecision(NodeType const &in_node,
+                std::vector<CharmLBTypes::ObjIDType> &&objs)
+      : node_(in_node), objs_(objs) {}
 
   NodeType node_ = uninitialized_destination;
-  CharmLBTypes::LoadType load_ = 0.0f;
   std::vector<CharmLBTypes::ObjIDType> objs_;
-  static constexpr int dimension = 1;
 };
 
 template <typename T>
